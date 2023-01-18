@@ -1,11 +1,7 @@
-import os
-
 import pytorch_lightning as pl
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-
-from data_loader_mnist import MNISTDataModule
 
 
 class LitModel(pl.LightningModule):
@@ -22,16 +18,21 @@ class LitModel(pl.LightningModule):
         loss = F.cross_entropy(y_hat, y)
         return loss
 
+    def validation_step(self, batch, batch_idx):
+        x, y = batch
+        y_hat = self(x)
+        loss = F.cross_entropy(y_hat, y)
+        self.log("val_loss", loss)
+
+    def test_step(self, batch, batch_idx):
+        x, y = batch
+        y_hat = self(x)
+        loss = F.cross_entropy(y_hat, y)
+        self.log("test_loss", loss)
+        # compute accuracy
+        preds = (y_hat.argmax(dim=1) == y).float()
+        acc = preds.mean()
+        self.log("test_acc", acc)
+
     def configure_optimizers(self):
         return torch.optim.Adam(self.parameters(), lr=0.02)
-
-
-if __name__ == '__main__':
-    # without dataloader module
-    # train_loader = DataLoader(MNIST(os.getcwd(), download=True, transform=transforms.ToTensor()))
-
-    train_loader = MNISTDataModule(data_dir=os.path.join(os.getcwd(), 'mnist_data'))
-    trainer = pl.Trainer(max_epochs=1)
-    model = LitModel()
-
-    trainer.fit(model, train_dataloaders=train_loader)
